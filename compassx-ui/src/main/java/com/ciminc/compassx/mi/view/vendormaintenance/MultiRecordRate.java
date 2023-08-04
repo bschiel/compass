@@ -18,6 +18,7 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,6 +67,8 @@ import com.ciminc.compassx.util.multirecord.MultiRecordException;
 import com.ciminc.compassx.util.multirecord.MultiRecordTemplate;
 import com.ciminc.compassx.util.multirecord.MultiRecordUtils;
 import com.ciminc.compassx.event.CompassXEvent;
+import static com.ciminc.compassx.util.CompassNextUtils.getFormattedDateTime;
+import com.ciminc.compassx.util.multirecord.MultiRecordController;
 import com.ciminc.compassx.view.audit.AuditEntityViewerPopupDialog;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.HasValue.ValueChangeEvent;
@@ -80,6 +83,8 @@ import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.GridSortOrderBuilder;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.UnorderedList;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -99,6 +104,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
+import org.owasp.encoder.Encode;
 
 /**
  *
@@ -290,10 +296,10 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         if (vendorRateWrapper != null) {
             boolean startDateChanged = CompassNextUtils.DateChanged(vendorRateWrapper.getOrigStartDate(), vendorRateWrapper.getStartDate());
             boolean stopDateChanged = CompassNextUtils.DateChanged(vendorRateWrapper.getOrigStopDate(), vendorRateWrapper.getStopDate());
-//BPS       vendorRateWrapper.setSsRelatedDateRangeUpdated(startDateChanged || stopDateChanged || vendorRateWrapper.isSsRelatedDateRangeUpdated());
+            vendorRateWrapper.setSsRelatedDateRangeUpdated(startDateChanged || stopDateChanged || vendorRateWrapper.isSsRelatedDateRangeUpdated());
 
             boolean serviceComboNeedsUpdating = doesServiceComboNeedUpdate(vendorRateWrapper);
-//BPS       hasVendorRatePermissionKeyChanged(vendorRateWrapper, serviceComboNeedsUpdating);
+            hasVendorRatePermissionKeyChanged(vendorRateWrapper, serviceComboNeedsUpdating);
             log.debug(LOG_MSG_ROW_VALUE_CHANGE, vendorRateWrapper);
 
             if (serviceComboNeedsUpdating) {
@@ -326,23 +332,23 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         return serviceComboNeedsUpdating;
     }
 
-//BPS
-//    private void hasVendorRatePermissionKeyChanged(VendorRateWrapper vendorRateWrapper, boolean serviceComboNeedsUpdating) {
-//        vendorRateWrapper.setUpdatedAgentCustomService(vendorRateWrapper.getAgentCustomService());
-//        vendorRateWrapper.setUpdatedCostPerUnit(vendorRateWrapper.getDefaultCostPerUnit());
-//
-//        // To-Do CM-6235: I don't think this is the right time or place to do the permission check.
-//        // Another rate line could be added which replaces this rate line exactly as it was ...
-//        // without any cost or custom service changes.  It seems that we cannot do this check until
-//        // the user is done editing.  If that is truly the case, then I'm not sure that we need all of
-//        // these fields in the wrapper class.
-//        boolean customServiceChanged = VendorviewUtils.entityChanged(vendorRateWrapper.getOrigAgentCustomService(), vendorRateWrapper.getUpdatedAgentCustomService());
-//        boolean costPerUnitChanged = VendorviewUtils.bigDecimalChanged(vendorRateWrapper.getOrigCostPerUnit(), vendorRateWrapper.getUpdatedCostPerUnit());
-//
-//        vendorRateWrapper.setSsRelatedCostUnitUpdated(costPerUnitChanged || vendorRateWrapper.isSsRelatedCostUnitUpdated());
-//        vendorRateWrapper.setRatePermissionKeyChanged(serviceComboNeedsUpdating || customServiceChanged || vendorRateWrapper.isSsRelatedCostUnitUpdated() || vendorRateWrapper.isRatePermissionKeyChanged());
-//        vendorRateWrapper.setSsRelatedServiceComboUpdated(serviceComboNeedsUpdating || customServiceChanged || vendorRateWrapper.isSsRelatedServiceComboUpdated());
-//    }
+    private void hasVendorRatePermissionKeyChanged(VendorRateWrapper vendorRateWrapper, boolean serviceComboNeedsUpdating) {
+        vendorRateWrapper.setUpdatedAgentCustomService(vendorRateWrapper.getAgentCustomService());
+        vendorRateWrapper.setUpdatedCostPerUnit(vendorRateWrapper.getDefaultCostPerUnit());
+
+        // To-Do CM-6235: I don't think this is the right time or place to do the permission check.
+        // Another rate line could be added which replaces this rate line exactly as it was ...
+        // without any cost or custom service changes.  It seems that we cannot do this check until
+        // the user is done editing.  If that is truly the case, then I'm not sure that we need all of
+        // these fields in the wrapper class.
+        boolean customServiceChanged = VendorviewUtils.entityChanged(vendorRateWrapper.getOrigAgentCustomService(), vendorRateWrapper.getUpdatedAgentCustomService());
+        boolean costPerUnitChanged = VendorviewUtils.bigDecimalChanged(vendorRateWrapper.getOrigCostPerUnit(), vendorRateWrapper.getUpdatedCostPerUnit());
+
+        vendorRateWrapper.setSsRelatedCostUnitUpdated(costPerUnitChanged || vendorRateWrapper.isSsRelatedCostUnitUpdated());
+        vendorRateWrapper.setRatePermissionKeyChanged(serviceComboNeedsUpdating || customServiceChanged || vendorRateWrapper.isSsRelatedCostUnitUpdated() || vendorRateWrapper.isRatePermissionKeyChanged());
+        vendorRateWrapper.setSsRelatedServiceComboUpdated(serviceComboNeedsUpdating || customServiceChanged || vendorRateWrapper.isSsRelatedServiceComboUpdated());
+    }
+
     private void initializeGridListeners() {
 
         listGrid.addCellEditStartedListener(event -> {
@@ -851,7 +857,6 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         return vendorRateWrapper.getVendorRate();
     }
 
-    //BPSFOO -- this is where recreatedDeletes get merged
     @Override
     public boolean saveData() throws MultiRecordException {
         if (web_service_list_errors) {
@@ -861,7 +866,11 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
             try {
                 List<VendorRate> updatedAndAddedRecords = new ArrayList<>();
                 List<VendorRate> deletedRecords = new ArrayList<>();
-                prepAddedUpdatedDeletedRecs(updatedAndAddedRecords, deletedRecords);
+                multiRecordChangeService.getAddedRecords().stream().map(vrw -> mapWrapperToRate(vrw, CLEAR_GUID)).forEach(vr -> updatedAndAddedRecords.add(vr));
+                multiRecordChangeService.getUpdatedRecords().stream().map(vrw -> mapWrapperToRate(vrw, KEEP_GUID))
+                        .forEach(vr -> updatedAndAddedRecords.add(vr));
+                multiRecordChangeService.getDeletedRecords().stream().map(vrw -> mapWrapperToRate(vrw, KEEP_GUID)).forEach(vr -> deletedRecords.add(vr));
+                MultiRecordUtils.mergeRecreatedDeletes(Arrays.asList(RATE_PROP_ARRAY), updatedAndAddedRecords, deletedRecords);
 
                 if (!updatedAndAddedRecords.isEmpty() || !deletedRecords.isEmpty()) {
                     VendorRateUpdateResult updateResult = locator().vendorRateService().updateVendorRates(selectedVendor.getGuid(), updatedAndAddedRecords, deletedRecords);
@@ -878,16 +887,6 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
             }
         }
         return false;
-    }
-
-    private void prepAddedUpdatedDeletedRecs(List<VendorRate> updatedAndAddedRecords, List<VendorRate> deletedRecords) {
-        MultiRecordChangeService<VendorRateWrapper> multiRecordChangeService = editPanelController.getConfig().getMultiRecordChangeService();
-
-        multiRecordChangeService.getAddedRecords().stream().map(vrw -> mapWrapperToRate(vrw, CLEAR_GUID)).forEach(vr -> updatedAndAddedRecords.add(vr));
-        multiRecordChangeService.getUpdatedRecords().stream().map(vrw -> mapWrapperToRate(vrw, KEEP_GUID))
-                .forEach(vr -> updatedAndAddedRecords.add(vr));
-        multiRecordChangeService.getDeletedRecords().stream().map(vrw -> mapWrapperToRate(vrw, KEEP_GUID)).forEach(vr -> deletedRecords.add(vr));
-        MultiRecordUtils.mergeRecreatedDeletes(Arrays.asList(RATE_PROP_ARRAY), updatedAndAddedRecords, deletedRecords);
     }
 
     @Override
@@ -1056,32 +1055,32 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
     }
 
     @Override
-    public boolean isValid(List<VendorRateWrapper> vendorRateWrappers) {  // FOO
+    public boolean isValid(List<VendorRateWrapper> vendorRateWrappers) {
         validationWarnMessageList = new ArrayList<>();
 
         clearInvalid(vendorRateWrappers);
-        VendorRateValidationResult rateValidationResult = validateRates(vendorRateWrappers);
-        if (!rateValidationResult.ok()) {
-            markRowsWithErrors(rateValidationResult);
+        VendorRateValiationResult rateValiationResult = validateRates(vendorRateWrappers);
+        if (!rateValiationResult.ok()) {
+            markRowsWithErrors(rateValiationResult);
         }
-        log.debug(LOG_VALIDATION, rateValidationResult, validationWarnMessageList);
-        displayValidationIssues(rateValidationResult);
+        log.debug(LOG_VALIDATION, rateValiationResult, validationWarnMessageList);
+        displayValidationIssues(rateValiationResult);
 
-        return rateValidationResult.ok();
+        return rateValiationResult.ok();
     }
 
-    protected void displayValidationIssues(VendorRateValidationResult rateValidationResult) {
-        if (!rateValidationResult.ok()) {
-            if (rateValidationResult.isError()) {
-                String validationErrorMessages = buildValidationErrorMessages(rateValidationResult);
+    protected void displayValidationIssues(VendorRateValiationResult rateValiationResult) {
+        if (!rateValiationResult.ok()) {
+            if (rateValiationResult.isError()) {
+                String validationErrorMessages = buildValidationErrorMessages(rateValiationResult);
                 VaadinUtils.showPersistentErrorNotification(validationErrorMessages);
             } else {
-                showWarningConfirmationDialog(rateValidationResult);
+                showWarningConfirmationDialog(rateValiationResult);
             }
         }
     }
 
-    protected void showWarningConfirmationDialog(VendorRateValidationResult rateValidationResult) {
+    protected void showWarningConfirmationDialog(VendorRateValiationResult rateValiationResult) {
         StringBuilder sb = new StringBuilder();
         for (String warnMessage : validationWarnMessageList) {
             sb.append(NEWLINE);
@@ -1091,15 +1090,15 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         sb.append(CONTINUE_TO_CHANGE_RATE_OR_CANCEL);
         new ConfirmDialog(CompassNextConstants.CONFIRM_DIALOG_CAPTION, sb.toString(), CompassNextConstants.CONTINUE, e -> {
             if (e.isFromClient()) {
-                rateValidationResult.setPassedSsRelatedWarnValidation(true);
+                rateValiationResult.setPassedSsRelatedWarnValidation(true);
                 doSaveData();
             }
         }, CompassNextConstants.CANCEL_BTN_LBL, e -> {
         }).open();
     }
 
-    protected VendorRateValidationResult validateRates(List<VendorRateWrapper> vendorRateWrappers) {
-        VendorRateValidationResult rateValidationResult = new VendorRateValidationResult();
+    protected VendorRateValiationResult validateRates(List<VendorRateWrapper> vendorRateWrappers) {
+        VendorRateValiationResult rateValiationResult = new VendorRateValiationResult();
         boolean fieldsValid = vendorRateWrappers.stream().allMatch(vrw -> !validateFields(vrw, null, false).isError());
         List<VendorRate> vendorRates = new ArrayList<>();
         vendorRates.addAll(vendorRateWrappers.stream().map(vrw -> vrw.getVendorRate()).collect(Collectors.toList()));
@@ -1112,21 +1111,21 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         boolean passedSsRelatedErrorValidation = validateServiceScheduleRelatedChanges(vendorRateWrappers);
         final VendorRateUpdateResult vendorRateUpdateResult = new VendorRateUpdateResult(overlappingRates, consecutiveRates);
         vendorRateUpdateResult.setInvalidRates(invalidRates);
-        rateValidationResult.setRateUpdateResult(vendorRateUpdateResult);
-        rateValidationResult.setFieldsValid(fieldsValid);
-        rateValidationResult.setPassedPermissionValidation(passedPermissionValidation);
-        rateValidationResult.setPassedSsRelatedErrorValidation(passedSsRelatedErrorValidation);
-        return rateValidationResult;
+        rateValiationResult.setRateUpdateResult(vendorRateUpdateResult);
+        rateValiationResult.setFieldsValid(fieldsValid);
+        rateValiationResult.setPassedPermissionValidation(passedPermissionValidation);
+        rateValiationResult.setPassedSsRelatedErrorValidation(passedSsRelatedErrorValidation);
+        return rateValiationResult;
     }
 
-    protected String buildValidationErrorMessages(VendorRateValidationResult rateValidationResult) {
+    protected String buildValidationErrorMessages(VendorRateValiationResult rateValiationResult) {
         StringBuilder sb = new StringBuilder();
-        appendErrorMessage(sb, !rateValidationResult.isPassedPermissionValidation(), ERROR_VR_SE_CHANGE_PERM_REQ);
-        appendErrorMessage(sb, !rateValidationResult.isPassedSsRelatedErrorValidation(), ERROR_UNABLE_SAVE_SERVICE_COMBO);
+        appendErrorMessage(sb, !rateValiationResult.isPassedPermissionValidation(), ERROR_VR_SE_CHANGE_PERM_REQ);
+        appendErrorMessage(sb, !rateValiationResult.isPassedSsRelatedErrorValidation(), ERROR_UNABLE_SAVE_SERVICE_COMBO);
 
-        List<String> consecutiveErrors = VendorRateValidation.getConsecutiveErrors(rateValidationResult.getRateUpdateResult().getConsecutiveRates());
-        List<String> overlapErrors = VendorRateValidation.getOverlapErrors(rateValidationResult.getRateUpdateResult().getOverlappingRates());
-        List<String> invalidErrors = VendorRateValidation.getInvalidServiceErrors(rateValidationResult.getRateUpdateResult().getInvalidRates());
+        List<String> consecutiveErrors = VendorRateValidation.getConsecutiveErrors(rateValiationResult.getRateUpdateResult().getConsecutiveRates());
+        List<String> overlapErrors = VendorRateValidation.getOverlapErrors(rateValiationResult.getRateUpdateResult().getOverlappingRates());
+        List<String> invalidErrors = VendorRateValidation.getInvalidServiceErrors(rateValiationResult.getRateUpdateResult().getInvalidRates());
 
         String result = Stream.concat(invalidErrors.stream(), Stream.concat(consecutiveErrors.stream(), overlapErrors.stream()))
                 .collect(Collectors.joining(NEWLINE));
@@ -1164,7 +1163,6 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         return returnValue;
     }
 
-    // FOOBAZ
     private boolean validateServiceScheduleRelatedChanges(List<VendorRateWrapper> vendorRateWrappers) {
         boolean result = true;
 
@@ -1190,7 +1188,7 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
                 continue;
             }
 
-            noErrorOrWarnRaised = hasNoErrorsOrWarnings(updatedVendorRate, rateSeVo, vendorRateWrappers);
+            noErrorOrWarnRaised = noErrorOrWarnRaised(updatedVendorRate, rateSeVo, vendorRateWrappers);
             if (!noErrorOrWarnRaised) {
                 result = false;
             }
@@ -1209,208 +1207,96 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         return vendorRateWrappers;
     }
 
-//    private boolean hasNoErrorsOrWarnings(VendorRateWrapper updatedVendorRate,
-//            VendorRateServiceEventVo matchingRateSeVo, List<VendorRateWrapper> vendorRateWrappers) {
-//        boolean result = true;
-//
-//        String message;
-//        String serviceCodes = CompassNextUtils.getServiceCodes(updatedVendorRate);
-//        String formattedStartDate = CompassNextUtils.getFormattedDateTime(updatedVendorRate.getOrigStartDate());
-//
-//        log.debug(DEBUG_ERR_OR_WARN_RAISED, updatedVendorRate, matchingRateSeVo);
-//
-//        // When a Vendor Rate record is updated, we need to determine if a rate change was
-//        // made that affects existing Service Events and if we need to produce either an
-//        // error or a warning.
-//        //
-//        // With the multi-record-editor, a given Vendor Rate line can be changed, deleted, or
-//        // completely replaced by one or more other Vendor Rate lines. We cannot use the original
-//        // VendorRateServiceEventVo line in the grid to determine changes, because that line may
-//        // have been deleted or could represent a completely different service.
-//        //
-//        // The original VendorRateServiceEventVo line has the original rate and all of the
-//        // Service Definitions that use that rate line.  Using that information, we can find
-//        // the rate lines in the grid that are associated with the original Vendor Rate record.
-//        List<VendorRate> allVendorRates = new ArrayList<>();
-//        allVendorRates.addAll(vendorRateWrappers.stream()
-//                .map(vrw -> vrw.getVendorRate()).collect(Collectors.toList()));
-//        allVendorRates.addAll(inactiveVendorRateList);
-//
-//        VendorRateServiceValidator serviceValidator = new VendorRateServiceValidator(updatedVendorRate,
-//                matchingRateSeVo, allVendorRates);
-//
-//        // To-Do CM-6931: We may not want to call this if the Vendor Rate Line uses a Custom Service.
-//        if (updatedVendorRate.getOrigAgentCustomService() == null) {
-//            if (serviceValidator.isServiceDefinitionDateRangeCovered()) {
-//                if (updatedVendorRate.isDeleting()) {
-//                    message = String.format(ERROR_UNABLE_DELETE_RATE, serviceCodes, formattedStartDate);
-//                } else {
-//                    message = String.format(ERROR_UNABLE_SAVE_DATE_RANGE, serviceCodes, formattedStartDate);
-//                }
-////              rateValiationResult.setPassedSsRelatedErrorValidation(false);
-//                validationErrorMessageList.add(message);
-//                return false;
-//            }
-//        }
-//
-//        // To-Do CM-6931: It may be that we need to rework the isServiceEventDateRangeCovered() method to
-//        // handle checking that there is a rate line to cover the entire Service Definitions date range.  We need to
-//        // validate with Service Events. We need to hydrate the Agent Custom Service in the Service Events.
-//        if (updatedVendorRate.getOrigAgentCustomService() != null
-//                && updatedVendorRate.getOrigAgentCustomService().getGuid() != null) {
-//            if (serviceValidator.isServiceEventDateRangeCovered()) {
-//                if (updatedVendorRate.isDeleting()) {
-//                    message = String.format(ERROR_UNABLE_DELETE_SE_RATE, serviceCodes, formattedStartDate);
-//                } else {
-//                    message = String.format(ERROR_UNABLE_SAVE_SE_DATE_RANGE, serviceCodes, formattedStartDate);
-//                }
-////                rateValiationResult.setPassedSsRelatedErrorValidation(false);
-//                validationErrorMessageList.add(message);
-//                return false;
-//            }
-//        }
-//
-//        if (VaadinUtils.isEmpty(matchingRateSeVo.getServiceDefWithSeVoList())) {
-//            return true;
-//        }
-//
-//        if (serviceValidator.hasCost(updatedVendorRate.getOrigCostPerUnit())) {
-//            if (serviceValidator.errorDefaultCostRemoved()) {
-////                rateValiationResult.setPassedSsRelatedErrorValidation(false);
-//                message = String.format(ERROR_UNABLE_SAVE_COST_UNIT, serviceCodes, formattedStartDate);
-//                validationErrorMessageList.add(message);
-//                result = false;
-//            } else {
-//                message = serviceValidator.warnDefaultCostChanged(serviceCodes, formattedStartDate);
-//                if (message != null) {
-////                    rateValiationResult.setPassedSsRelatedWarnValidation(false);
-//                    validationWarnMessageList.add(message);
-//                    result = false;
-//                }
-//            }
-//        } else {
-//            if (serviceValidator.warnDefaultCostAdded()) {
-////                rateValiationResult.setPassedSsRelatedWarnValidation(false);
-//                message = String.format(WARN_UNABLE_SAVE_COST_UNIT, serviceCodes, formattedStartDate);
-//                validationWarnMessageList.add(message);
-//                result = false;
-//            }
-//        }
-//
-//        return result;
-//    }
-    private boolean hasNoErrorsOrWarnings(VendorRateWrapper updatedVendorRate,
+    private boolean noErrorOrWarnRaised(VendorRateWrapper updatedVendorRate,
             VendorRateServiceEventVo matchingRateSeVo, List<VendorRateWrapper> vendorRateWrappers) {
-        String serviceCodes = getServiceCodes(updatedVendorRate);
-        String formattedStartDate = getFormattedStartDate(updatedVendorRate);
-
-        List<VendorRate> allVendorRates = getAllVendorRates(vendorRateWrappers);
-
-        VendorRateServiceValidator serviceValidator = new VendorRateServiceValidator(updatedVendorRate, matchingRateSeVo,
-                allVendorRates, updatedVendorRate, serviceCodes, formattedStartDate);
-
         boolean result = true;
 
-        if (isNonCustomService(updatedVendorRate) && serviceValidator.isServiceDefinitionDateRangeCovered()) {
-            result = handleServiceDefinitionDateRangeError(serviceValidator);
-        }
+        String message;
+        String serviceCodes = CompassNextUtils.getServiceCodes(updatedVendorRate);
+        String formattedStartDate = CompassNextUtils.getFormattedDateTime(updatedVendorRate.getOrigStartDate());
 
-        // TODO CM-6235 [BRIAN] - First find "Suspicious" SEs that appear to not be covered by rates.
-        // Then for that SE subset, unpack the SE instances and check to see if they get repriced.
-        // Do this in a compass service call.  If repricing occurs without permission,
-        // throw an error.  Remember to skip that service call if they have permission.
-        if (isCustomService(updatedVendorRate) && serviceValidator.isServiceEventDateRangeCovered()) {
-            result = handleServiceEventDateRangeError(serviceValidator);
-        }
+        log.debug(DEBUG_ERR_OR_WARN_RAISED, updatedVendorRate, matchingRateSeVo);
 
-        if (isServiceDefinitionsWithSEsNotEmpty(matchingRateSeVo)) {
-            result = handleCostValidation(serviceValidator);
-        }
-
-        return result;
-    }
-
-    private String getServiceCodes(VendorRateWrapper updatedVendorRate) {
-        return CompassNextUtils.getServiceCodes(updatedVendorRate);
-    }
-
-    private String getFormattedStartDate(VendorRateWrapper updatedVendorRate) {
-        return CompassNextUtils.getFormattedDateTime(updatedVendorRate.getOrigStartDate());
-    }
-
-    private List<VendorRate> getAllVendorRates(List<VendorRateWrapper> vendorRateWrappers) {
+        // When a Vendor Rate record is updated, we need to determine if a rate change was
+        // made that affects existing Service Events and if we need to produce either an
+        // error or a warning.
+        //
+        // With the multi-record-editor, a given Vendor Rate line can be changed, deleted, or
+        // completely replaced by one or more other Vendor Rate lines. We cannot use the original
+        // VendorRateServiceEventVo line in the grid to determine changes, because that line may
+        // have been deleted or could represent a completely different service.
+        //
+        // The original VendorRateServiceEventVo line has the original rate and all of the
+        // Service Definitions that use that rate line.  Using that information, we can find
+        // the rate lines in the grid that are associated with the original Vendor Rate record.
         List<VendorRate> allVendorRates = new ArrayList<>();
         allVendorRates.addAll(vendorRateWrappers.stream()
-                .map(VendorRateWrapper::getVendorRate).collect(Collectors.toList()));
+                .map(vrw -> vrw.getVendorRate()).collect(Collectors.toList()));
         allVendorRates.addAll(inactiveVendorRateList);
-        return allVendorRates;
-    }
 
-    private boolean isNonCustomService(VendorRateWrapper updatedVendorRate) {
-        return updatedVendorRate.getOrigAgentCustomService() == null;
-    }
+        VendorRateServiceValidator serviceValidator = new VendorRateServiceValidator(updatedVendorRate,
+                matchingRateSeVo, allVendorRates);
 
-    private boolean isCustomService(VendorRateWrapper updatedVendorRate) {
-        return updatedVendorRate.getOrigAgentCustomService() != null && updatedVendorRate.getOrigAgentCustomService().getGuid() != null;
-    }
-
-    private boolean handleServiceDefinitionDateRangeError(VendorRateServiceValidator serviceValidator) {
-        String message = serviceValidator.getUpdatedVendorRate().isDeleting()
-                ? String.format(ERROR_UNABLE_DELETE_RATE, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate())
-                : String.format(ERROR_UNABLE_SAVE_DATE_RANGE, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate());
-
-        validationErrorMessageList.add(message);
-        return false;
-    }
-
-    private boolean handleServiceEventDateRangeError(VendorRateServiceValidator serviceValidator) {
-        String message = serviceValidator.getUpdatedVendorRate().isDeleting()
-                ? String.format(ERROR_UNABLE_DELETE_SE_RATE, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate())
-                : String.format(ERROR_UNABLE_SAVE_SE_DATE_RANGE, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate());
-
-        validationErrorMessageList.add(message);
-        return false;
-    }
-
-    private boolean isServiceDefinitionsWithSEsNotEmpty(VendorRateServiceEventVo matchingRateSeVo) {
-        return !VaadinUtils.isEmpty(matchingRateSeVo.getServiceDefWithSeVoList());
-    }
-
-    private boolean handleCostValidation(VendorRateServiceValidator serviceValidator) {
-        boolean result = true;
-
-        if (serviceValidator.hasCost(serviceValidator.getUpdatedVendorRate().getOrigCostPerUnit())) {
-            result = handleCostPerUnitErrorsAndWarnings(serviceValidator);
-        } else if (serviceValidator.warnDefaultCostAdded()) {
-            result = handleDefaultCostAddedWarning(serviceValidator);
+        // To-Do CM-6931: We may not want to call this if the Vendor Rate Line uses a Custom Service.
+        if (updatedVendorRate.getOrigAgentCustomService() == null)
+        {
+            if (serviceValidator.isServiceDefinitionDateRangeCovered()) {
+                if (updatedVendorRate.isDeleting()) {
+                    message = String.format(ERROR_UNABLE_DELETE_RATE, serviceCodes, formattedStartDate);
+                } else {
+                    message = String.format(ERROR_UNABLE_SAVE_DATE_RANGE, serviceCodes, formattedStartDate);
+                }
+//              rateValiationResult.setPassedSsRelatedErrorValidation(false);
+                validationErrorMessageList.add(message);
+                return false;
+            }
         }
 
-        return result;
-    }
+        // To-Do CM-6931: It may be that we need to rework the isServiceEventDateRangeCovered() method to
+        // handle checking that there is a rate line to cover the entire Service Definitions date range.  We need to
+        // validate with Service Events. We need to hydrate the Agent Custom Service in the Service Events.
+        if (updatedVendorRate.getOrigAgentCustomService() != null
+                && updatedVendorRate.getOrigAgentCustomService().getGuid() != null) {
+            if (serviceValidator.isServiceEventDateRangeCovered()) {
+                if (updatedVendorRate.isDeleting()) {
+                    message = String.format(ERROR_UNABLE_DELETE_SE_RATE, serviceCodes, formattedStartDate);
+                } else {
+                    message = String.format(ERROR_UNABLE_SAVE_SE_DATE_RANGE, serviceCodes, formattedStartDate);
+                }
+//                rateValiationResult.setPassedSsRelatedErrorValidation(false);
+                validationErrorMessageList.add(message);
+                return false;
+            }
+        }
 
-    private boolean handleCostPerUnitErrorsAndWarnings(VendorRateServiceValidator serviceValidator) {
-        boolean result = true;
-        String message;
+        if (VaadinUtils.isEmpty(matchingRateSeVo.getServiceDefWithSeVoList())) {
+            return true;
+        }
 
-        if (serviceValidator.errorDefaultCostRemoved()) {
-            message = String.format(ERROR_UNABLE_SAVE_COST_UNIT, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate());
-            validationErrorMessageList.add(message);
-            result = false;
+        if (serviceValidator.hasCost(updatedVendorRate.getOrigCostPerUnit())) {
+             if (serviceValidator.errorDefaultCostRemoved()) {
+//                rateValiationResult.setPassedSsRelatedErrorValidation(false);
+                message = String.format(ERROR_UNABLE_SAVE_COST_UNIT, serviceCodes, formattedStartDate);
+                validationErrorMessageList.add(message);
+                result = false;
+            } else {
+                message = serviceValidator.warnDefaultCostChanged(serviceCodes, formattedStartDate);
+                if (message != null) {
+//                    rateValiationResult.setPassedSsRelatedWarnValidation(false);
+                    validationWarnMessageList.add(message);
+                    result = false;
+                }
+            }
         } else {
-            message = serviceValidator.warnDefaultCostChanged(serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate());
-            if (message != null) {
+            if (serviceValidator.warnDefaultCostAdded()) {
+//                rateValiationResult.setPassedSsRelatedWarnValidation(false);
+                message = String.format(WARN_UNABLE_SAVE_COST_UNIT, serviceCodes, formattedStartDate);
                 validationWarnMessageList.add(message);
                 result = false;
             }
         }
 
         return result;
-    }
-
-    private boolean handleDefaultCostAddedWarning(VendorRateServiceValidator serviceValidator) {
-        String message = String.format(WARN_UNABLE_SAVE_COST_UNIT, serviceValidator.getServiceCodes(), serviceValidator.getFormattedStartDate());
-        validationWarnMessageList.add(message);
-        return false;
     }
 
     private List<String> getModifiedSsRelatedVendorRates() {
@@ -1423,8 +1309,6 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         // if we need to validate the rate change against the Service Definition.
         // Currently, rates will not be validated if the vrw.hasSsRelatedUpdates()
         // returns false.
-        //
-        //BPS To-Do CM-6235 - This might be a good place to call that method that merges recreated rates.
         MultiRecordChangeService<VendorRateWrapper> multiRecordChangeService = editPanelController.getConfig().getMultiRecordChangeService();
         multiRecordChangeService.getUpdatedRecords().stream().forEach(vrw -> {
             if (vrw.hasSsRelatedUpdates()) {
@@ -1441,7 +1325,6 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         return vendorRateGuids;
     }
 
-    // FOOBAZ
     private VendorRateServiceEventWrapper getModifiedVendorRateServiceEvents(List<String> vendorRateGuids) {
         VendorRateServiceEventWrapper returnValue = new VendorRateServiceEventWrapper();
 
@@ -1965,7 +1848,7 @@ public class MultiRecordRate extends MultiRecordTemplate<VendorRateWrapper> {
         }
     }
 
-    private void markRowsWithErrors(VendorRateValidationResult rateValiationResult) {
+    private void markRowsWithErrors(VendorRateValiationResult rateValiationResult) {
         markRowsWithErrors(rateValiationResult.getRateUpdateResult());
     }
 
